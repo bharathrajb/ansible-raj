@@ -67,12 +67,11 @@ resource "aws_key_pair" "deployer_key" {
   key_name_prefix = "ansible-key-"
   public_key      = tls_private_key.pipeline_key.public_key_openssh
 
-  # Save the private key to /root/.ssh/ pipeline node automatically
+  # Save the private key inside the current workspace project folder instead of /root
   provisioner "local-exec" {
     command = <<EOT
-      mkdir -p /root/.ssh
-      echo "${tls_private_key.pipeline_key.private_key_pem}" > /root/.ssh/ansible-key.pem
-      chmod 400 /root/.ssh/ansible-key.pem
+      echo "${tls_private_key.pipeline_key.private_key_pem}" > ../ansible-key.pem
+      chmod 400 ../ansible-key.pem
     EOT
   }
 }
@@ -89,10 +88,11 @@ resource "aws_instance" "target_node" {
   }
 
   # Write out the structural updates back into your local ansible inventory automatically
+  # Points the private key path directly to the workspace location
   provisioner "local-exec" {
     command = <<EOT
       echo "[aws_targets]" > ../inventory
-      echo "ec2-target ansible_host=${self.public_ip} ansible_user=ec2-user ansible_ssh_private_key_file=/root/.ssh/ansible-key.pem" >> ../inventory
+      echo "ec2-target ansible_host=${self.public_ip} ansible_user=ec2-user ansible_ssh_private_key_file=ansible-key.pem" >> ../inventory
     EOT
   }
 }
