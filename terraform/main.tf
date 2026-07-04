@@ -32,9 +32,9 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Create a Security Group inside the default VPC
+# Create a Security Group with a dynamic name prefix
 resource "aws_security_group" "ansible_sg" {
-  name        = "ansible-target-sg"
+  name_prefix = "ansible-sg-"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -50,6 +50,10 @@ resource "aws_security_group" "ansible_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # 1. Automatically generate a new secure private key locally
@@ -58,10 +62,10 @@ resource "tls_private_key" "pipeline_key" {
   rsa_bits  = 4096
 }
 
-# 2. Register the generated public key with AWS
+# 2. Register the generated public key with a dynamic name prefix
 resource "aws_key_pair" "deployer_key" {
-  key_name   = "ansible-pipeline-key"
-  public_key = tls_private_key.pipeline_key.public_key_openssh
+  key_name_prefix = "ansible-key-"
+  public_key      = tls_private_key.pipeline_key.public_key_openssh
 
   # Save the private key to /root/.ssh/ pipeline node automatically
   provisioner "local-exec" {
@@ -76,7 +80,7 @@ resource "aws_key_pair" "deployer_key" {
 # Build the EC2 Instance target
 resource "aws_instance" "target_node" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.micro" # Updated to match Singapore Free Tier eligibility 
+  instance_type          = "t3.micro" 
   key_name               = aws_key_pair.deployer_key.key_name
   vpc_security_group_ids = [aws_security_group.ansible_sg.id]
 
