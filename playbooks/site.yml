@@ -1,0 +1,16 @@
+---
+- name: Configure AWS Target Node
+  hosts: aws_targets
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Ensure system packages are up to date
+      dnf:
+        name: "*"
+        state: latest
+      register: os_update_result
+
+    - name: Print confirmation message
+      debug:
+        msg: "Success! Target node has been fully updated via Jenkins pipeline automation."
