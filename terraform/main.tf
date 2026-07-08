@@ -37,9 +37,18 @@ resource "aws_security_group" "ansible_sg" {
   name_prefix = "ansible-sg-"
   vpc_id      = data.aws_vpc.default.id
 
+  # 1. Allow SSH for Ansible/Jenkins
   ingress {
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+
+  # 2. Allow HTTP web traffic for your browser
+  ingress {
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] 
   }
@@ -56,18 +65,17 @@ resource "aws_security_group" "ansible_sg" {
   }
 }
 
-# 1. Automatically generate a new secure private key locally
+# Automatically generate a new secure private key locally
 resource "tls_private_key" "pipeline_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# 2. Register the generated public key with a dynamic name prefix
+# Register the generated public key with a dynamic name prefix
 resource "aws_key_pair" "deployer_key" {
   key_name_prefix = "ansible-key-"
   public_key      = tls_private_key.pipeline_key.public_key_openssh
 
-  # Save the private key inside the current workspace project folder instead of /root
   provisioner "local-exec" {
     command = <<EOT
       echo "${tls_private_key.pipeline_key.private_key_pem}" > ../ansible-key.pem
@@ -87,8 +95,6 @@ resource "aws_instance" "target_node" {
     Name = "AWS-Ansible-Target"
   }
 
-  # Write out the structural updates back into your local ansible inventory automatically
-  # Points the private key path directly to the workspace location
   provisioner "local-exec" {
     command = <<EOT
       echo "[aws_targets]" > ../inventory
