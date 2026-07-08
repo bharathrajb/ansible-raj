@@ -11,12 +11,11 @@ provider "aws" {
   region = "ap-southeast-1" 
 }
 
-# Query Default VPC
+# 1. Query Core Networking Data Elements
 data "aws_vpc" "default" {
   default = true
 }
 
-# Query Subnets inside the Default VPC
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -24,7 +23,6 @@ data "aws_subnets" "default" {
   }
 }
 
-# Query Latest Amazon Linux 2023 AMI
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -38,7 +36,7 @@ data "aws_ami" "al2023" {
   }
 }
 
-# Security Group for Load Balancer (Public Port 80)
+# 2. Security Infrastructure Profiles
 resource "aws_security_group" "alb_sg" {
   name_prefix = "alb-sg-"
   vpc_id      = data.aws_vpc.default.id
@@ -58,7 +56,6 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Security Group for EC2 Instances (SSH and HTTP from ALB)
 resource "aws_security_group" "instance_sg" {
   name_prefix = "instance-sg-"
   vpc_id      = data.aws_vpc.default.id
@@ -85,7 +82,7 @@ resource "aws_security_group" "instance_sg" {
   }
 }
 
-# Generate SSH Key
+# 3. Secure Key Configuration Components & Vaulting
 resource "tls_private_key" "pipeline_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -94,16 +91,16 @@ resource "tls_private_key" "pipeline_key" {
 resource "aws_key_pair" "deployer_key" {
   key_name_prefix = "ansible-key-"
   public_key      = tls_private_key.pipeline_key.public_key_openssh
-
-  provisioner "local-exec" {
-    command = <<EOT
-      echo "${tls_private_key.pipeline_key.private_key_pem}" > ../ansible-key.pem
-      chmod 400 ../ansible-key.pem
-    EOT
-  }
 }
 
-# Application Load Balancer
+resource "aws_ssm_parameter" "ssh_private_key" {
+  name        = "/pipeline/ansible_private_key"
+  description = "Managed private deployment key for infrastructure configuration overrides"
+  type        = "SecureString"
+  value       = tls_private_key.pipeline_key.private_key_pem
+}
+
+# 4. Application Load Balancer Architecture Setup
 resource "aws_lb" "external_alb" {
   name               = "pipeline-alb"
   internal           = false
@@ -112,7 +109,6 @@ resource "aws_lb" "external_alb" {
   subnets            = data.aws_subnets.default.ids
 }
 
-# Target Group for Load Balancer
 resource "aws_lb_target_group" "alb_target_group" {
   name     = "pipeline-tg"
   port     = 80
@@ -130,7 +126,6 @@ resource "aws_lb_target_group" "alb_target_group" {
   }
 }
 
-# ALB Listener Route
 resource "aws_lb_listener" "alb_listener" {
   load_balancer_arn = aws_lb.external_alb.arn
   port              = "80"
@@ -142,7 +137,7 @@ resource "aws_lb_listener" "alb_listener" {
   }
 }
 
-# ASG Launch Template
+# 5. Launch Template Configurations
 resource "aws_launch_template" "asg_template" {
   name_prefix   = "asg-template-"
   image_id      = data.aws_ami.al2023.id
@@ -162,7 +157,7 @@ resource "aws_launch_template" "asg_template" {
   }
 }
 
-# Auto Scaling Group
+# 6. Auto Scaling Cluster Core Infrastructure
 resource "aws_autoscaling_group" "pipeline_asg" {
   name_prefix         = "pipeline-asg-"
   desired_capacity    = 2
