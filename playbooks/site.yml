@@ -1,16 +1,40 @@
 ---
-- name: Configure AWS Target Node
+- name: Deploy Nginx Web Server on Amazon Linux 2023
   hosts: aws_targets
   become: true
   gather_facts: true
 
   tasks:
-    - name: Ensure system packages are up to date
+    - name: Ensure the latest version of Nginx is installed
       dnf:
-        name: "*"
+        name: nginx
         state: latest
-      register: os_update_result
 
-    - name: Print confirmation message
-      debug:
-        msg: "Success! Target node has been fully updated via Jenkins pipeline automation."
+    - name: Create a custom landing page index.html
+      copy:
+        dest: /usr/share/nginx/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Success!</title>
+              <style>
+                  body { font-family: sans-serif; text-align: center; margin-top: 10%; background: #f4f6f9; }
+                  h1 { color: #232f3e; }
+                  .card { background: white; padding: 30px; display: inline-block; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+              </style>
+          </head>
+          <body>
+              <div class="card">
+                  <h1>🚀 Pipeline Provisioning Successful!</h1>
+                  <p>Managed by Jenkins, deployed via Terraform, and configured using Ansible.</p>
+              </div>
+          </body>
+          </html>
+        mode: '0644'
+
+    - name: Ensure Nginx service is started and enabled on boot
+      systemctl:
+          name: nginx
+          state: started
+          enabled: true
