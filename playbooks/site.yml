@@ -1,40 +1,36 @@
 ---
-- name: Deploy Nginx Web Server on Amazon Linux 2023
+- name: Transform EC2 into a Docker Host and Deploy App
   hosts: aws_targets
   become: true
   gather_facts: true
 
   tasks:
-    - name: Ensure the latest version of Nginx is installed
+    - name: Install Docker dependencies and core package
       dnf:
-        name: nginx
+        name: docker
         state: latest
 
-    - name: Create a custom landing page index.html
-      copy:
-        dest: /usr/share/nginx/html/index.html
-        content: |
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>Success!</title>
-              <style>
-                  body { font-family: sans-serif; text-align: center; margin-top: 10%; background: #f4f6f9; }
-                  h1 { color: #232f3e; }
-                  .card { background: white; padding: 30px; display: inline-block; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-              </style>
-          </head>
-          <body>
-              <div class="card">
-                  <h1>🚀 Pipeline Provisioning Successful!</h1>
-                  <p>Managed by Jenkins, deployed via Terraform, and configured using Ansible.</p>
-              </div>
-          </body>
-          </html>
-        mode: '0644'
-
-    - name: Ensure Nginx service is started and enabled on boot
+    - name: Ensure Docker service is started and enabled on boot
       service:
-        name: nginx
+        name: docker
         state: started
         enabled: true
+
+    - name: Install python3-pip to manage Docker SDK
+      dnf:
+        name: python3-pip
+        state: present
+
+    - name: Install Ansible Docker library via pip
+      pip:
+        name: docker
+        extra_args: --break-system-packages
+
+    - name: Pull and launch a containerized sample web application
+      docker_container:
+        name: my_web_container
+        image: nginxdemos/hello
+        state: started
+        restart_policy: always
+        published_ports:
+          - "80:80"
