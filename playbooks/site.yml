@@ -1,24 +1,24 @@
 ---
-- name: Transform EC2 into a Docker Host and Deploy App
+- name: Deploy High Availability Application and Monitoring Cluster Stack
   hosts: aws_targets
   become: true
   gather_facts: true
 
   tasks:
-    - name: Install Docker and Python3 Docker SDK packages
+    - name: Install Docker engine and Python dependencies
       dnf:
         name:
           - docker
           - python3-docker
         state: latest
 
-    - name: Ensure Docker service is started and enabled on boot
+    - name: Start Docker system engine
       service:
         name: docker
         state: started
         enabled: true
 
-    - name: Pull and launch a containerized sample web application
+    - name: Launch live production Nginx application container
       docker_container:
         name: my_web_container
         image: nginxdemos/hello
@@ -26,3 +26,14 @@
         restart_policy: always
         published_ports:
           - "80:80"
+
+    - name: Launch Grafana Visual Dashboard analytics matrix container
+      docker_container:
+        name: metrics_grafana
+        image: grafana/grafana-oss:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "3000:3000"
+        env:
+          GF_SECURITY_ADMIN_PASSWORD: "AdminPassword123"
