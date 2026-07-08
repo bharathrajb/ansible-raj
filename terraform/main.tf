@@ -1,20 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "ap-southeast-1" 
-}
-
-# Automatically query the latest official Amazon Linux 2023 AMI
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
 
   filter {
     name   = "name"
