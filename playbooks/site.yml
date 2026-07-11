@@ -33,9 +33,9 @@
         image: grafana/grafana-oss:latest
         state: started
         restart_policy: always
+        recreate: true  # Forces Docker to recreate the container and apply new user DB settings
         published_ports:
           - "3000:3000"
-        # Explicitly defining both User and Password forces Grafana to override system defaults
         env:
           GF_SECURITY_ADMIN_USER: "admin"
           GF_SECURITY_ADMIN_PASSWORD: "AdminPassword123"
