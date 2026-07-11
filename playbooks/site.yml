@@ -27,12 +27,15 @@
         published_ports:
           - "80:80"
 
-    - name: Force delete any stale Grafana containers and local storage data
+    - name: Atomic breakdown of existing Grafana container instances
       docker_container:
         name: metrics_grafana
         state: absent
 
-    - name: Launch fresh Grafana Visual Dashboard analytics matrix container
+    - name: Force delete deep persistent volume cache from host disks
+      shell: "docker volume rm $(docker volume ls -q) || true"
+
+    - name: Launch pristine Grafana Visual Dashboard analytics matrix container
       docker_container:
         name: metrics_grafana
         image: grafana/grafana-oss:latest
