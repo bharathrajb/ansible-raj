@@ -11,6 +11,7 @@ provider "aws" {
   region = "ap-southeast-1" 
 }
 
+# 1. Core Network & Base Image Queries
 data "aws_vpc" "default" {
   default = true
 }
@@ -35,7 +36,7 @@ data "aws_ami" "al2023" {
   }
 }
 
-# ALB Security Group (Public Web Ports: 80 for App, 3000 for Grafana Dashboard)
+# 2. Application Load Balancer Security Profile
 resource "aws_security_group" "alb_sg" {
   name_prefix = "alb-sg-"
   vpc_id      = data.aws_vpc.default.id
@@ -62,7 +63,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# EC2 Instance Security Group
+# 3. Target EC2 Cluster Instance Security Profile
 resource "aws_security_group" "instance_sg" {
   name_prefix = "instance-sg-"
   vpc_id      = data.aws_vpc.default.id
@@ -96,6 +97,7 @@ resource "aws_security_group" "instance_sg" {
   }
 }
 
+# 4. Cryptographic Key Pairing & Safe SSM parameter Storage
 resource "tls_private_key" "pipeline_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -113,7 +115,7 @@ resource "aws_ssm_parameter" "ssh_private_key" {
   value       = tls_private_key.pipeline_key.private_key_pem
 }
 
-# Application Load Balancer
+# 5. External Load Balancer Core Engine
 resource "aws_lb" "external_alb" {
   name               = "pipeline-alb"
   internal           = false
@@ -122,7 +124,7 @@ resource "aws_lb" "external_alb" {
   subnets            = data.aws_subnets.default.ids
 }
 
-# Target Group 1: Nginx Web Application
+# Target Routing Group A: Application Web Service
 resource "aws_lb_target_group" "alb_target_group" {
   name     = "pipeline-tg"
   port     = 80
@@ -140,7 +142,7 @@ resource "aws_lb_target_group" "alb_target_group" {
   }
 }
 
-# Target Group 2: Grafana Dashboard
+# Target Routing Group B: Grafana Metric Workspace
 resource "aws_lb_target_group" "grafana_tg" {
   name     = "grafana-tg"
   port     = 3000
@@ -158,7 +160,7 @@ resource "aws_lb_target_group" "grafana_tg" {
   }
 }
 
-# Route Port 80 to Nginx App
+# Public Inbound Access Control Interfaces
 resource "aws_lb_listener" "alb_listener" {
   load_balancer_arn = aws_lb.external_alb.arn
   port              = "80"
@@ -170,7 +172,6 @@ resource "aws_lb_listener" "alb_listener" {
   }
 }
 
-# Route Port 3000 to Grafana Dashboard
 resource "aws_lb_listener" "grafana_listener" {
   load_balancer_arn = aws_lb.external_alb.arn
   port              = "3000"
@@ -182,11 +183,22 @@ resource "aws_lb_listener" "grafana_listener" {
   }
 }
 
+# 6. EC2 Launch Template Config (With Enhanced gp3 Node Volumes)
 resource "aws_launch_template" "asg_template" {
   name_prefix   = "asg-template-"
   image_id      = data.aws_ami.al2023.id
   instance_type = "t3.micro"
   key_name      = aws_key_pair.deployer_key.key_name
+
+  # Upgrading root system block layout map allocation to 20GB gp3
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 20
+      volume_type           = "gp3"
+      delete_on_termination = true
+    }
+  }
 
   network_interfaces {
     associate_public_ip_address = true
@@ -201,6 +213,7 @@ resource "aws_launch_template" "asg_template" {
   }
 }
 
+# 7. Dynamic Cluster Scaling System Environment
 resource "aws_autoscaling_group" "pipeline_asg" {
   name_prefix         = "pipeline-asg-"
   desired_capacity    = 2
@@ -219,6 +232,7 @@ resource "aws_autoscaling_group" "pipeline_asg" {
   }
 }
 
+# Output Configuration Data Element
 output "alb_dns_name" {
   value       = aws_lb.external_alb.dns_name
   description = "Public URL for your web application and metrics panel"
