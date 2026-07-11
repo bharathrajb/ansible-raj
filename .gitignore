@@ -1,0 +1,11 @@
+# Ignore local Terraform state and binaries
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+tfplan
+
+# Ignore pipeline temporary injection assets
+inventory
+ansible-key.pem
+test-key.pem
